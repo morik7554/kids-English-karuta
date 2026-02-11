@@ -338,12 +338,12 @@
         // データ準備
         const originalData = JSON.parse(JSON.stringify(genres[key].data));
         gameState.deck = shuffle([...originalData]);
-        if (gameState.deck.length < 10) {
+        if (gameState.deck.length < 9) {
             gameState.deck = [...gameState.deck, ...JSON.parse(JSON.stringify(originalData))];
         }
 
         gameState.board = [];
-        for (let i=0; i<10; i++) {
+        for (let i=0; i<9; i++) {
             if (gameState.deck.length > 0) {
                 gameState.board.push(gameState.deck.pop());
             }
@@ -417,7 +417,7 @@
             
             if (card) {
                 el.innerHTML = `
-                    <div class="text-3xl md:text-4xl mb-2">${card.i}</div>
+                    <div class="text-4xl md:text-5xl mb-2">${card.i}</div>
                     <div class="text-xs md:text-base font-bold text-slate-700 leading-none text-center">${card.w}</div>
                 `;
                 el.onclick = () => handleCardClick(index);
