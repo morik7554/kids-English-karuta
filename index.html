@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kids English Karuta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Fredoka', 'Segoe UI', sans-serif;
+            touch-action: manipulation;
+        }
+
+        .card {
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .card:active {
+            transform: scale(0.95);
+        }
+        
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-5deg); }
+            75% { transform: translateX(5px) rotate(5deg); }
+        }
+        
+        .animate-pop { animation: pop 0.4s ease-out; }
+        .animate-shake { animation: shake 0.4s ease-in-out; }
+
+        /* カウントダウンアニメーション */
+        @keyframes count-pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-count { animation: count-pop 0.8s forwards; }
+
+        /* ポイントポップアップ用 */
+        @keyframes float-up {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            20% { transform: translateY(-10px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-40px) scale(1); opacity: 0; }
+        }
+        .point-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff9f1c;
+            font-weight: bold;
+            font-size: 2rem;
+            text-shadow: 2px 2px 0 #fff;
+            pointer-events: none;
+            animation: float-up 0.8s ease-out forwards;
+            z-index: 50;
+        }
+
+        /* NEW RECORD アニメーション */
+        @keyframes rainbow {
+            0% { color: #ff0000; transform: scale(1); }
+            20% { color: #ff9a00; transform: scale(1.1); }
+            40% { color: #d0de21; transform: scale(1); }
+            60% { color: #4fdc4a; transform: scale(1.1); }
+            80% { color: #3fdad8; transform: scale(1); }
+            100% { color: #2fc9e2; transform: scale(1.1); }
+        }
+        .new-record-text {
+            animation: rainbow 1s infinite;
+            font-weight: 900;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-blue-50 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- ヘッダー -->
+    <header class="bg-white shadow-sm p-3 flex justify-between items-center z-10">
+        <h1 class="text-xl md:text-2xl font-bold text-orange-500 tracking-wide flex items-center gap-2">
+            <span>🦁</span> English Karuta
+        </h1>
+        <div id="game-info" class="hidden flex gap-4 text-lg font-bold items-center">
+            <div class="flex items-center gap-1 text-purple-500 mr-2">
+                <span>🔥</span>
+                <span id="combo" class="text-xl">0</span>
+                <span class="text-xs ml-1">Combo</span>
+            </div>
+            <div class="flex items-center gap-1 text-slate-600">
+                <span>⏱️</span>
+                <span id="timer" class="w-8 text-center">60</span>
+            </div>
+            <div class="flex items-center gap-1 text-orange-500">
+                <span>⭐</span>
+                <span id="score" class="w-12 text-center">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインエリア -->
+    <main class="flex-1 relative w-full max-w-4xl mx-auto p-4 overflow-y-auto">
+        
+        <!-- 1. スタート画面 -->
+        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-start pt-10 px-4 transition-opacity duration-300">
+            <h2 class="text-2xl font-bold mb-6 text-center text-slate-700">Let's Play! <br><span class="text-base font-normal text-slate-500">えらんでスタート！</span></h2>
+            <div id="genre-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-lg pb-10">
+                <!-- JSでボタン生成 -->
+            </div>
+        </div>
+
+        <!-- 2. ゲーム画面 -->
+        <div id="game-screen" class="hidden flex flex-col h-full relative">
+            
+            <!-- カウントダウンオーバーレイ -->
+            <div id="countdown-overlay" class="hidden absolute inset-0 bg-white/90 z-40 flex items-center justify-center rounded-2xl">
+                <div id="countdown-text" class="text-9xl font-bold text-orange-500 drop-shadow-lg">3</div>
+            </div>
+
+            <!-- カードグリッド -->
+            <div id="card-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 auto-rows-fr flex-1 content-start pb-20">
+                <!-- JSでカード生成 -->
+            </div>
+
+            <!-- スピーカーボタン -->
+            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+                <button id="replay-btn" class="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-20 h-20 shadow-lg flex items-center justify-center text-4xl transition-transform active:scale-90 animate-bounce-slow border-4 border-white">
+                    🔊
+                </button>
+                <p class="text-center text-xs font-bold text-slate-500 mt-2 bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">Listen Again</p>
+            </div>
+        </div>
+
+        <!-- 3. 結果画面 -->
+        <div id="result-screen" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 animate-fade-in">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="text-3xl font-bold text-orange-500 mb-2">Time's Up!</h2>
+            
+            <!-- NEW RECORD表示用 -->
+            <div id="new-record-msg" class="hidden text-3xl mb-4 new-record-text">🏆 NEW RECORD! 🏆</div>
+            
+            <p class="text-slate-500 mb-6">おつかれさま！</p>
+            <div class="bg-blue-50 rounded-2xl p-8 mb-8 text-center shadow-inner w-full max-w-xs">
+                <div class="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Score</div>
+                <div class="text-6xl font-bold text-slate-800" id="final-score">0</div>
+                <div class="text-sm text-slate-400 mt-2">points</div>
+            </div>
+            <button onclick="showStartScreen()" class="bg-orange-500 hover:bg-orange-600 text-white text-xl font-bold py-4 px-10 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center gap-2">
+                <span>🔄</span> Play Again
+            </button>
+        </div>
+    </main>
+
+<script>
+    // --- データセット ---
+    const genres = {
+        // --- 新規追加: 感情 ---
+        feelings: { label: "Feelings", sub:"きもち", icon: "😄", data: [
+            {w:"happy", i:"😄"}, {w:"sad", i:"😢"}, {w:"angry", i:"😠"}, {w:"sleepy", i:"😪"}, {w:"scared", i:"😱"},
+            {w:"surprised", i:"😲"}, {w:"hot", i:"🥵"}, {w:"cold", i:"🥶"}, {w:"sick", i:"😷"}, {w:"tired", i:"😫"},
+            {w:"cool", i:"😎"}, {w:"love", i:"😍"}, {w:"funny", i:"😆"}, {w:"cry", i:"😭"}, {w:"wink", i:"😉"}
+        ]},
+        // --- 新規追加: 身の回りのもの ---
+        daily: { label: "Daily", sub:"みじかなもの", icon: "👜", data: [
+            {w:"umbrella", i:"☔"}, {w:"wallet", i:"👛"}, {w:"backpack", i:"🎒"}, {w:"gift", i:"🎁"}, {w:"balloon", i:"🎈"},
+            {w:"doll", i:"🧸"}, {w:"robot", i:"🤖"}, {w:"game", i:"🎮"}, {w:"headphones", i:"🎧"}, {w:"calendar", i:"📅"},
+            {w:"trash", i:"🗑️"}, {w:"broom", i:"🧹"}, {w:"bucket", i:"🪣"}, {w:"medicine", i:"💊"}, {w:"bandage", i:"🩹"}
+        ]},
+        uppercase: { label: "Uppercase", sub:"大文字", icon: "🅰️", data: [
+            {w:"A", i:"A"}, {w:"B", i:"B"}, {w:"C", i:"C"}, {w:"D", i:"D"}, {w:"E", i:"E"},
+            {w:"F", i:"F"}, {w:"G", i:"G"}, {w:"H", i:"H"}, {w:"I", i:"I"}, {w:"J", i:"J"},
+            {w:"K", i:"K"}, {w:"L", i:"L"}, {w:"M", i:"M"}, {w:"N", i:"N"}, {w:"O", i:"O"},
+            {w:"P", i:"P"}, {w:"Q", i:"Q"}, {w:"R", i:"R"}, {w:"S", i:"S"}, {w:"T", i:"T"},
+            {w:"U", i:"U"}, {w:"V", i:"V"}, {w:"W", i:"W"}, {w:"X", i:"X"}, {w:"Y", i:"Y"},
+            {w:"Z", i:"Z"}
+        ]},
+        lowercase: { label: "Lowercase", sub:"小文字", icon: "🔡", data: [
+            {w:"a", i:"a"}, {w:"b", i:"b"}, {w:"c", i:"c"}, {w:"d", i:"d"}, {w:"e", i:"e"},
+            {w:"f", i:"f"}, {w:"g", i:"g"}, {w:"h", i:"h"}, {w:"i", i:"i"}, {w:"j", i:"j"},
+            {w:"k", i:"k"}, {w:"l", i:"l"}, {w:"m", i:"m"}, {w:"n", i:"n"}, {w:"o", i:"o"},
+            {w:"p", i:"p"}, {w:"q", i:"q"}, {w:"r", i:"r"}, {w:"s", i:"s"}, {w:"t", i:"t"},
+            {w:"u", i:"u"}, {w:"v", i:"v"}, {w:"w", i:"w"}, {w:"x", i:"x"}, {w:"y", i:"y"},
+            {w:"z", i:"z"}
+        ]},
+        numbers: { label: "Numbers", sub:"かず", icon: "🔢", data: [
+            {w:"one", i:"1️⃣"}, {w:"two", i:"2️⃣"}, {w:"three", i:"3️⃣"}, {w:"four", i:"4️⃣"}, {w:"five", i:"5️⃣"},
+            {w:"six", i:"6️⃣"}, {w:"seven", i:"7️⃣"}, {w:"eight", i:"8️⃣"}, {w:"nine", i:"9️⃣"}, {w:"ten", i:"🔟"},
+            {w:"eleven", i:"11"}, {w:"twelve", i:"12"}, {w:"zero", i:"0️⃣"}, {w:"twenty", i:"20"}, {w:"one hundred", i:"💯"}
+        ]},
+        fruits: { label: "Fruits", sub:"くだもの", icon: "🍎", data: [
+            {w:"apple", i:"🍎"}, {w:"banana", i:"🍌"}, {w:"grape", i:"🍇"}, {w:"melon", i:"🍈"}, {w:"watermelon", i:"🍉"},
+            {w:"orange", i:"🍊"}, {w:"lemon", i:"🍋"}, {w:"peach", i:"🍑"}, {w:"cherry", i:"🍒"}, {w:"strawberry", i:"🍓"},
+            {w:"pineapple", i:"🍍"}, {w:"kiwi", i:"🥝"}, {w:"coconut", i:"🥥"}, {w:"pear", i:"🍐"}, {w:"mango", i:"🥭"}
+        ]},
+        animals: { label: "Animals", sub:"どうぶつ", icon: "🐶", data: [
+            {w:"dog", i:"🐶"}, {w:"cat", i:"🐱"}, {w:"mouse", i:"🐭"}, {w:"rabbit", i:"🐰"}, {w:"bear", i:"🐻"},
+            {w:"panda", i:"🐼"}, {w:"tiger", i:"🐯"}, {w:"lion", i:"🦁"}, {w:"cow", i:"🐮"}, {w:"pig", i:"🐷"},
+            {w:"monkey", i:"🐵"}, {w:"chicken", i:"🐔"}, {w:"penguin", i:"🐧"}, {w:"frog", i:"🐸"}, {w:"horse", i:"🐴"}
+        ]},
+        food: { label: "Food", sub:"たべもの", icon: "🍔", data: [
+            {w:"burger", i:"🍔"}, {w:"pizza", i:"🍕"}, {w:"hot dog", i:"🌭"}, {w:"fries", i:"🍟"}, {w:"sandwich", i:"🥪"},
+            {w:"sushi", i:"🍣"}, {w:"rice", i:"🍚"}, {w:"bread", i:"🍞"}, {w:"egg", i:"🍳"}, {w:"ice cream", i:"🍦"},
+            {w:"cake", i:"🍰"}, {w:"chocolate", i:"🍫"}, {w:"cookie", i:"🍪"}, {w:"donut", i:"🍩"}, {w:"popcorn", i:"🍿"}
+        ]},
+        colors: { label: "Nature", sub:"しぜん", icon: "🌳", data: [
+            {w:"sun", i:"☀️"}, {w:"moon", i:"🌙"}, {w:"star", i:"⭐"}, {w:"cloud", i:"☁️"}, {w:"rain", i:"☔"},
+            {w:"snow", i:"⛄"}, {w:"fire", i:"🔥"}, {w:"water", i:"💧"}, {w:"flower", i:"🌺"}, {w:"tree", i:"🌳"},
+            {w:"mountain", i:"⛰️"}, {w:"ocean", i:"🌊"}, {w:"rainbow", i:"🌈"}, {w:"Earth", i:"🌎"}, {w:"leaf", i:"🍃"}
+        ]},
+        vehicle: { label: "Vehicles", sub:"のりもの", icon: "🚗", data: [
+            {w:"car", i:"🚗"}, {w:"bus", i:"🚌"}, {w:"train", i:"🚃"}, {w:"bike", i:"🚲"}, {w:"plane", i:"✈️"},
+            {w:"ship", i:"🚢"}, {w:"rocket", i:"🚀"}, {w:"taxi", i:"🚕"}, {w:"police car", i:"🚓"}, {w:"ambulance", i:"🚑"},
+            {w:"fire engine", i:"🚒"}, {w:"truck", i:"🚚"}, {w:"helicopter", i:"🚁"}, {w:"boat", i:"🛶"}, {w:"scooter", i:"🛴"}
+        ]},
+        sports: { label: "Sports", sub:"スポーツ", icon: "⚽", data: [
+            {w:"soccer", i:"⚽"}, {w:"baseball", i:"⚾"}, {w:"basketball", i:"🏀"}, {w:"tennis", i:"🎾"}, {w:"volleyball", i:"🏐"},
+            {w:"golf", i:"⛳"}, {w:"running", i:"🏃"}, {w:"swimming", i:"🏊"}, {w:"skiing", i:"⛷️"}, {w:"boxing", i:"🥊"},
+            {w:"cycling", i:"🚴"}, {w:"surfing", i:"🏄"}, {w:"skating", i:"⛸️"}, {w:"ping pong", i:"🏓"}, {w:"rugby", i:"🏉"}
+        ]},
+        body: { label: "Body", sub:"からだ", icon: "👂", data: [
+            {w:"head", i:"👱"}, {w:"eye", i:"👁️"}, {w:"ear", i:"👂"}, {w:"nose", i:"👃"}, {w:"mouth", i:"👄"},
+            {w:"hand", i:"✋"}, {w:"foot", i:"🦶"}, {w:"arm", i:"💪"}, {w:"leg", i:"🦵"}, {w:"tooth", i:"🦷"},
+            {w:"hair", i:"💇"}, {w:"finger", i:"👆"}, {w:"heart", i:"❤️"}, {w:"brain", i:"🧠"}, {w:"bone", i:"🦴"}
+        ]},
+        school: { label: "School", sub:"がっこう", icon: "🎒", data: [
+            {w:"school", i:"🏫"}, {w:"pencil", i:"✏️"}, {w:"book", i:"📖"}, {w:"notebook", i:"📓"}, {w:"ruler", i:"📏"},
+            {w:"scissors", i:"✂️"}, {w:"bag", i:"🎒"}, {w:"desk", i:"🪑"}, {w:"computer", i:"💻"}, {w:"clock", i:"⏰"},
+            {w:"crayon", i:"🖍️"}, {w:"paper", i:"📄"}, {w:"globe", i:"🌍"}, {w:"teacher", i:"👩‍🏫"}, {w:"music", i:"🎵"}
+        ]},
+        clothes: { label: "Clothes", sub:"ようふく", icon: "👕", data: [
+            {w:"shirt", i:"👕"}, {w:"pants", i:"👖"}, {w:"dress", i:"👗"}, {w:"hat", i:"🧢"}, {w:"shoes", i:"👟"},
+            {w:"socks", i:"🧦"}, {w:"glasses", i:"👓"}, {w:"coat", i:"🧥"}, {w:"tie", i:"👔"}, {w:"bikini", i:"👙"},
+            {w:"kimono", i:"👘"}, {w:"ring", i:"💍"}, {w:"watch", i:"⌚"}, {w:"mask", i:"😷"}, {w:"glove", i:"🧤"}
+        ]},
+        jobs: { label: "Jobs", sub:"おしごと", icon: "👨‍⚕️", data: [
+            {w:"doctor", i:"👨‍⚕️"}, {w:"police", i:"👮"}, {w:"firefighter", i:"🧑‍🚒"}, {w:"cook", i:"👨‍🍳"}, {w:"artist", i:"🧑‍🎨"},
+            {w:"singer", i:"🧑‍🎤"}, {w:"pilot", i:"🧑‍✈️"}, {w:"astronaut", i:"🧑‍🚀"}, {w:"farmer", i:"👩‍🌾"}, {w:"detective", i:"🕵️"},
+            {w:"student", i:"🧑‍🎓"}, {w:"king", i:"🤴"}, {w:"queen", i:"👸"}, {w:"ninja", i:"🥷"}, {w:"alien", i:"👽"}
+        ]},
+        house: { label: "House", sub:"おうち", icon: "🏠", data: [
+            {w:"house", i:"🏠"}, {w:"door", i:"🚪"}, {w:"window", i:"🪟"}, {w:"bed", i:"🛌"}, {w:"bath", i:"🛁"},
+            {w:"toilet", i:"🚽"}, {w:"soap", i:"🧼"}, {w:"toothbrush", i:"🪥"}, {w:"key", i:"🔑"}, {w:"camera", i:"📷"},
+            {w:"phone", i:"📱"}, {w:"letter", i:"✉️"}, {w:"box", i:"📦"}, {w:"money", i:"💰"}, {w:"light", i:"💡"}
+        ]}
+    };
+
+    // --- 変数 ---
+    let gameState = {
+        score: 0,
+        timeLeft: 60,
+        isPlaying: false,
+        genreKey: null,
+        deck: [],
+        board: [],
+        target: null,
+        timerId: null,
+        combo: 0,
+        questionStartTime: 0
+    };
+
+    // --- ハイスコア管理 ---
+    let highScores = {};
+    const STORAGE_KEY = 'karuta_highscores';
+
+    const synth = window.speechSynthesis;
+    let voices = [];
+
+    function initVoices() {
+        voices = synth.getVoices();
+    }
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = initVoices;
+    }
+    initVoices();
+
+    // --- 初期化 ---
+    function init() {
+        // ハイスコア読み込み
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            highScores = JSON.parse(stored);
+        }
+
+        const grid = document.getElementById('genre-grid');
+        grid.innerHTML = "";
+        
+        Object.keys(genres).forEach(key => {
+            const g = genres[key];
+            const bestScore = highScores[key] || 0;
+
+            const btn = document.createElement('button');
+            btn.className = "bg-white border-2 border-blue-100 hover:border-orange-400 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col items-center gap-1 group relative";
+            btn.onclick = () => startGame(key);
+            btn.innerHTML = `
+                <span class="text-4xl group-hover:scale-110 transition-transform duration-200 mb-1">${g.icon}</span>
+                <div class="text-center w-full">
+                    <div class="font-bold text-slate-700 leading-tight">${g.label}</div>
+                    <div class="text-xs text-slate-400 font-bold mb-1">${g.sub}</div>
+                    <div class="bg-orange-100 text-orange-600 text-xs font-bold px-2 py-1 rounded-full inline-block">
+                        🏆 ${bestScore}
+                    </div>
+                </div>
+            `;
+            grid.appendChild(btn);
+        });
+    }
+
+    // --- ゲーム開始 ---
+    function startGame(key) {
+        gameState.genreKey = key;
+        gameState.score = 0;
+        gameState.timeLeft = 60;
+        gameState.combo = 0;
+        gameState.isPlaying = false;
+        
+        // データ準備
+        const originalData = JSON.parse(JSON.stringify(genres[key].data));
+        gameState.deck = shuffle([...originalData]);
+        if (gameState.deck.length < 10) {
+            gameState.deck = [...gameState.deck, ...JSON.parse(JSON.stringify(originalData))];
+        }
+
+        gameState.board = [];
+        for (let i=0; i<10; i++) {
+            if (gameState.deck.length > 0) {
+                gameState.board.push(gameState.deck.pop());
+            }
+        }
+
+        // 画面切り替え
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        document.getElementById('game-info').classList.remove('hidden');
+        document.getElementById('score').innerText = 0;
+        document.getElementById('combo').innerText = 0;
+        document.getElementById('timer').innerText = 60;
+
+        renderBoard();
+        
+        startCountdown();
+    }
+
+    function startCountdown() {
+        const overlay = document.getElementById('countdown-overlay');
+        const countText = document.getElementById('countdown-text');
+        overlay.classList.remove('hidden');
+        
+        let count = 3;
+        
+        const triggerAnim = (text) => {
+            countText.innerText = text;
+            countText.classList.remove('animate-count');
+            void countText.offsetWidth; // リフロー
+            countText.classList.add('animate-count');
+            
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-US';
+            u.rate = 1.5;
+            synth.speak(u);
+        };
+
+        triggerAnim(count);
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                triggerAnim(count);
+            } else if (count === 0) {
+                triggerAnim("GO!");
+            } else {
+                clearInterval(interval);
+                overlay.classList.add('hidden');
+                gameState.isPlaying = true;
+                setNewTarget(); 
+                startTimer();
+            }
+        }, 1000);
+    }
+
+    function renderBoard() {
+        const grid = document.getElementById('card-grid');
+        grid.innerHTML = "";
+
+        gameState.board.forEach((card, index) => {
+            const el = document.createElement('div');
+            el.className = `card relative bg-white border-4 border-slate-100 rounded-2xl flex flex-col items-center justify-center p-2 cursor-pointer h-32 md:h-40 shadow-sm hover:shadow-md hover:border-blue-300`;
+            
+            if (card) {
+                el.innerHTML = `
+                    <div class="text-4xl md:text-5xl mb-2">${card.i}</div>
+                    <div class="text-sm md:text-lg font-bold text-slate-700 leading-none text-center">${card.w}</div>
+                `;
+                el.onclick = () => handleCardClick(index);
+            } else {
+                el.classList.add('invisible');
+            }
+            grid.appendChild(el);
+        });
+    }
+
+    function setNewTarget() {
+        if (!gameState.isPlaying) return;
+        const candidates = gameState.board.filter(c => c !== null);
+        if (candidates.length === 0) return;
+
+        gameState.target = candidates[Math.floor(Math.random() * candidates.length)];
+        gameState.questionStartTime = Date.now();
+        
+        setTimeout(() => {
+            speak(gameState.target.w);
+        }, 300);
+    }
+
+    function speak(text) {
+        synth.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'en-US';
+        u.rate = 0.9;
+        const enVoice = voices.find(v => v.lang.startsWith('en'));
+        if (enVoice) u.voice = enVoice;
+        synth.speak(u);
+    }
+
+    document.getElementById('replay-btn').onclick = () => {
+        if (gameState.isPlaying && gameState.target) {
+            const btn = document.getElementById('replay-btn');
+            btn.classList.remove('animate-bounce-slow');
+            void btn.offsetWidth;
+            btn.classList.add('animate-bounce-slow');
+            speak(gameState.target.w);
+        }
+    };
+
+    function handleCardClick(index) {
+        if (!gameState.isPlaying) return;
+        
+        const card = gameState.board[index];
+        const cardEls = document.getElementById('card-grid').children;
+        const el = cardEls[index];
+
+        if (card.w === gameState.target.w) {
+            // --- 正解処理 ---
+            gameState.isPlaying = false;
+            
+            // ① 時間計算
+            const now = Date.now();
+            const elapsedSec = (now - gameState.questionStartTime) / 1000;
+            let baseScore = 100;
+
+            if (elapsedSec > 0.5) {
+                const penaltySteps = Math.ceil((elapsedSec - 0.5) / 0.5);
+                baseScore = Math.max(10, 100 - (penaltySteps * 5));
+            }
+
+            // ② コンボ計算
+            gameState.combo++;
+            let multiplier = 1.0;
+            if (gameState.combo >= 4 && gameState.combo <= 5) multiplier = 1.1;
+            else if (gameState.combo >= 6 && gameState.combo <= 10) multiplier = 1.2;
+            else if (gameState.combo >= 11) multiplier = 1.3;
+
+            const points = Math.round(baseScore * multiplier);
+            gameState.score += points;
+
+            document.getElementById('score').innerText = gameState.score;
+            document.getElementById('combo').innerText = gameState.combo;
+
+            el.classList.remove('border-slate-100', 'hover:border-blue-300');
+            el.classList.add('bg-green-100', 'border-green-400', 'animate-pop');
+
+            showPointsPopup(el, points, multiplier);
+            
+            setTimeout(() => {
+                replaceCard(index);
+                renderBoard();
+                gameState.isPlaying = true;
+                setNewTarget();
+            }, 600);
+            
+        } else {
+            // --- 不正解処理 ---
+            el.classList.add('bg-red-50', 'border-red-400', 'animate-shake');
+            speak("Oh no.");
+            
+            gameState.combo = 0;
+            document.getElementById('combo').innerText = 0;
+
+            setTimeout(() => {
+                el.classList.remove('bg-red-50', 'border-red-400', 'animate-shake');
+            }, 500);
+        }
+    }
+
+    function showPointsPopup(element, points, multiplier) {
+        const rect = element.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.className = 'point-popup';
+        
+        let text = `+${points}`;
+        if (multiplier > 1.0) {
+            text += `<div style="font-size:0.6em; color:#ffcc00;">Combo x${multiplier}</div>`;
+        }
+        popup.innerHTML = text;
+
+        document.body.appendChild(popup);
+        
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        popup.style.left = `${centerX}px`;
+        popup.style.top = `${centerY}px`;
+
+        setTimeout(() => {
+            popup.remove();
+        }, 800);
+    }
+
+    function replaceCard(index) {
+        if (gameState.deck.length === 0) {
+            refillDeck();
+        }
+        
+        let newCard = null;
+        let retry = 0;
+        
+        while (retry < 10) {
+            if (gameState.deck.length === 0) refillDeck();
+            const candidate = gameState.deck.pop();
+            const isDuplicate = gameState.board.some(c => c && c.w === candidate.w);
+            
+            if (!isDuplicate) {
+                newCard = candidate;
+                break;
+            } else {
+                gameState.deck.unshift(candidate);
+            }
+            retry++;
+        }
+        
+        if (!newCard) {
+             if (gameState.deck.length > 0) newCard = gameState.deck.pop();
+             else refillDeck();
+        }
+        gameState.board[index] = newCard;
+    }
+
+    function refillDeck() {
+        const original = genres[gameState.genreKey].data;
+        const newDeck = JSON.parse(JSON.stringify(original));
+        gameState.deck = shuffle(newDeck);
+    }
+
+    function startTimer() {
+        if (gameState.timerId) clearInterval(gameState.timerId);
+        gameState.timerId = setInterval(() => {
+            gameState.timeLeft--;
+            document.getElementById('timer').innerText = gameState.timeLeft;
+            
+            if (gameState.timeLeft <= 0) {
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function endGame() {
+        clearInterval(gameState.timerId);
+        gameState.isPlaying = false;
+        synth.cancel();
+        
+        document.getElementById('final-score').innerText = gameState.score;
+        document.getElementById('result-screen').classList.remove('hidden');
+
+        // ハイスコア判定と保存
+        const currentBest = highScores[gameState.genreKey] || 0;
+        const isNewRecord = gameState.score > currentBest;
+        const msgEl = document.getElementById('new-record-msg');
+
+        if (isNewRecord) {
+            highScores[gameState.genreKey] = gameState.score;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(highScores));
+            msgEl.classList.remove('hidden');
+            speak("New Record! Congratulations!");
+        } else {
+            msgEl.classList.add('hidden');
+            speak("Finish! Good job!");
+        }
+    }
+
+    function showStartScreen() {
+        // ボタンのスコア表示を更新するために再初期化
+        init();
+        
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('game-info').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+    }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    init();
+</script>
+</body>
+</html>
