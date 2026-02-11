@@ -134,6 +134,9 @@
             <!-- 操作ボタン -->
             <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center">
                 <div class="flex items-center gap-4">
+                    <button id="quit-btn" class="bg-white text-slate-700 hover:text-slate-900 rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-xl transition-transform active:scale-90 border-4 border-white">
+                        🏠
+                    </button>
                     <button id="retry-btn" class="bg-slate-700 hover:bg-slate-800 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl transition-transform active:scale-90 border-4 border-white">
                         🔄
                     </button>
@@ -142,6 +145,7 @@
                     </button>
                 </div>
                 <div class="flex items-center gap-4 mt-2 text-xs font-bold text-slate-500">
+                    <span class="bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">やめる</span>
                     <span class="bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">Retry</span>
                     <span class="bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">Listen Again</span>
                 </div>
@@ -439,7 +443,8 @@
 
     function speak(text) {
         synth.cancel();
-        const u = new SpeechSynthesisUtterance(text);
+        const spokenText = /^[A-Z]$/.test(text) ? text.toLowerCase() : text;
+        const u = new SpeechSynthesisUtterance(spokenText);
         u.lang = 'en-US';
         u.rate = 0.9;
         const enVoice = voices.find(v => v.lang.startsWith('en'));
@@ -455,6 +460,11 @@
             btn.classList.add('animate-bounce-slow');
             speak(gameState.target.w);
         }
+    };
+
+    document.getElementById('quit-btn').onclick = () => {
+        synth.cancel();
+        showStartScreen();
     };
 
     document.getElementById('retry-btn').onclick = () => {
@@ -632,6 +642,7 @@
             clearInterval(gameState.countdownId);
             gameState.countdownId = null;
         }
+        synth.cancel();
         
         document.getElementById('result-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.add('hidden');
