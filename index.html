@@ -131,12 +131,20 @@
                 <!-- JSでカード生成 -->
             </div>
 
-            <!-- スピーカーボタン -->
-            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20">
-                <button id="replay-btn" class="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-20 h-20 shadow-lg flex items-center justify-center text-4xl transition-transform active:scale-90 animate-bounce-slow border-4 border-white">
-                    🔊
-                </button>
-                <p class="text-center text-xs font-bold text-slate-500 mt-2 bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">Listen Again</p>
+            <!-- 操作ボタン -->
+            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center">
+                <div class="flex items-center gap-4">
+                    <button id="retry-btn" class="bg-slate-700 hover:bg-slate-800 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl transition-transform active:scale-90 border-4 border-white">
+                        🔄
+                    </button>
+                    <button id="replay-btn" class="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-20 h-20 shadow-lg flex items-center justify-center text-4xl transition-transform active:scale-90 animate-bounce-slow border-4 border-white">
+                        🔊
+                    </button>
+                </div>
+                <div class="flex items-center gap-4 mt-2 text-xs font-bold text-slate-500">
+                    <span class="bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">Retry</span>
+                    <span class="bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">Listen Again</span>
+                </div>
             </div>
         </div>
 
@@ -263,6 +271,7 @@
         board: [],
         target: null,
         timerId: null,
+        countdownId: null,
         combo: 0,
         questionStartTime: 0
     };
@@ -354,6 +363,11 @@
         const overlay = document.getElementById('countdown-overlay');
         const countText = document.getElementById('countdown-text');
         overlay.classList.remove('hidden');
+
+        if (gameState.countdownId) {
+            clearInterval(gameState.countdownId);
+            gameState.countdownId = null;
+        }
         
         let count = 3;
         
@@ -379,12 +393,14 @@
                 triggerAnim("GO!");
             } else {
                 clearInterval(interval);
+                gameState.countdownId = null;
                 overlay.classList.add('hidden');
                 gameState.isPlaying = true;
                 setNewTarget(); 
                 startTimer();
             }
         }, 1000);
+        gameState.countdownId = interval;
     }
 
     function renderBoard() {
@@ -439,6 +455,18 @@
             btn.classList.add('animate-bounce-slow');
             speak(gameState.target.w);
         }
+    };
+
+    document.getElementById('retry-btn').onclick = () => {
+        if (!gameState.genreKey) return;
+        gameState.isPlaying = false;
+        if (gameState.timerId) clearInterval(gameState.timerId);
+        if (gameState.countdownId) {
+            clearInterval(gameState.countdownId);
+            gameState.countdownId = null;
+        }
+        synth.cancel();
+        startGame(gameState.genreKey);
     };
 
     function handleCardClick(index) {
@@ -598,6 +626,12 @@
     function showStartScreen() {
         // ボタンのスコア表示を更新するために再初期化
         init();
+
+        if (gameState.timerId) clearInterval(gameState.timerId);
+        if (gameState.countdownId) {
+            clearInterval(gameState.countdownId);
+            gameState.countdownId = null;
+        }
         
         document.getElementById('result-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.add('hidden');
